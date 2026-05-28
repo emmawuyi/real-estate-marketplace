@@ -1,0 +1,12 @@
+/* App-specific local styles (if any) */
+.page-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-area {
+  flex-grow: 1;
+  padding-top: 80px; /* offset for fixed navbar */
+  min-height: calc(100vh - 80px);
+}
