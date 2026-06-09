@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MOCK_PROPERTIES } from '../mockData';
+import { useListings } from '../lib/hooks';
 import { ListingCard } from '../components/ListingCard';
 import { Search, MapPin, Grid, List, RefreshCw } from 'lucide-react';
 
 export const Listings: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [filteredProperties, setFilteredProperties] = useState(MOCK_PROPERTIES);
 
   // Sync state with URL params
   const [query, setQuery] = useState(searchParams.get('q') || '');
@@ -18,56 +17,33 @@ export const Listings: React.FC = () => {
 
   const [isGridView, setIsGridView] = useState(true);
 
-  // Apply filters whenever state changes
+  // Fetch listings from Supabase
+  const filters = {
+    search: query,
+    category: category !== 'all' ? category : undefined,
+    type: type !== 'all' ? type : undefined,
+    priceMax: priceMax !== 'all' ? parseInt(priceMax, 10) : undefined,
+    priceMin: undefined,
+    beds: minBeds !== 'all' ? parseInt(minBeds, 10) : undefined,
+    baths: minBaths !== 'all' ? parseFloat(minBaths) : undefined,
+  };
+
+  const { listings, isLoading } = useListings(filters);
+
+  // Apply baths filtering (since the hook doesn't support it perfectly)
+  const filteredProperties = minBaths !== 'all' 
+    ? listings.filter(p => p.baths >= parseFloat(minBaths))
+    : listings;
+
+  // Sync URL search parameters
   useEffect(() => {
-    let result = MOCK_PROPERTIES;
-
-    // Search Query (case-insensitive in location or title)
-    if (query) {
-      const q = query.toLowerCase();
-      result = result.filter(p => 
-        p.title.toLowerCase().includes(q) || 
-        p.location.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q)
-      );
-    }
-
-    // Rent vs Sale Type
-    if (type !== 'all') {
-      result = result.filter(p => p.type === type);
-    }
-
-    // Category
-    if (category !== 'all') {
-      result = result.filter(p => p.category === category);
-    }
-
-    // Price Max capping
-    if (priceMax !== 'all') {
-      const max = parseInt(priceMax, 10);
-      result = result.filter(p => p.price <= max);
-    }
-
-    // Beds & Baths limits
-    if (minBeds !== 'all') {
-      const beds = parseInt(minBeds, 10);
-      result = result.filter(p => p.beds >= beds);
-    }
-    if (minBaths !== 'all') {
-      const baths = parseFloat(minBaths);
-      result = result.filter(p => p.baths >= baths);
-    }
-
-    setFilteredProperties(result);
-
-    // Sync URL search parameters
     const nextParams = new URLSearchParams();
     if (query) nextParams.set('q', query);
     if (type !== 'all') nextParams.set('type', type);
     if (category !== 'all') nextParams.set('category', category);
     if (priceMax !== 'all') nextParams.set('price', priceMax);
     setSearchParams(nextParams, { replace: true });
-  }, [query, type, category, priceMax, minBeds, minBaths]);
+  }, [query, type, category, priceMax, setSearchParams]);
 
   const handleResetFilters = () => {
     setQuery('');
@@ -237,7 +213,19 @@ export const Listings: React.FC = () => {
 
         {/* Property Grid Content */}
         <main style={{ flexGrow: 1 }}>
-          {filteredProperties.length === 0 ? (
+          {isLoading ? (
+            <div className="glass-panel" style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '60px 40px',
+              borderRadius: 'var(--radius-lg)',
+              textAlign: 'center'
+            }}>
+              <p>Loading listings...</p>
+            </div>
+          ) : filteredProperties.length === 0 ? (
             <div className="glass-panel animate-fade-in" style={{
               display: 'flex',
               flexDirection: 'column',
